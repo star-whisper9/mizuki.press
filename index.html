@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <title>Mizuki Snap</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #d2eaf4;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end; /* 让人物站在底部 */
+        cursor: crosshair;
+      }
+
+      /* 容器，用于定位 */
+      .stage {
+        position: relative;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+      }
+
+      /* 水月主体 */
+      #mizuki {
+        height: 100%;
+        width: auto;
+        object-fit: contain;
+        /* 核心动画：平滑的转身过渡 */
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transform-origin: center bottom;
+        pointer-events: none; /* 让点击事件穿透图片，点到 body 上 */
+        user-select: none;
+      }
+
+      /* 闪光灯层 */
+      #flash-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: white;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 999;
+      }
+
+      /* 闪光动画 */
+      .flashing {
+        animation: flash-anim 0.4s ease-out forwards;
+      }
+
+      @keyframes flash-anim {
+        0% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      /* 拍立得展示弹窗 (Modal) */
+      #photo-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(5px);
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+
+      #photo-modal.show {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      /* 拍立得相框 */
+      .polaroid {
+        background: white;
+        padding: 15px 15px 50px 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        transform: scale(0.8) rotate(-2deg);
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        max-height: 80vh;
+        max-width: 80vw;
+        text-align: center;
+        cursor: default;
+      }
+
+      #photo-modal.show .polaroid {
+        transform: scale(1) rotate(0deg);
+      }
+
+      .polaroid img {
+        max-height: 60vh;
+        max-width: 100%;
+        display: block;
+        border: 1px solid #eee;
+      }
+
+      .polaroid-text {
+        margin-top: 15px;
+        font-family: "Courier New", Courier, monospace;
+        color: #555;
+        font-weight: bold;
+        font-size: 1.2rem;
+      }
+
+      /* 自定义右键菜单 */
+      #context-menu {
+        display: none;
+        position: fixed;
+        background: white;
+        border: 1px solid #ddd;
+        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 9999;
+        padding: 5px 0;
+        border-radius: 6px;
+        min-width: 160px;
+      }
+
+      .menu-item {
+        padding: 10px 15px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #333;
+        transition: background 0.2s;
+      }
+
+      .menu-item:hover {
+        background-color: #f5f5f5;
+        color: #0096fa;
+      }
+
+      /* Footer */
+      .footer {
+        position: fixed;
+        bottom: 5px;
+        width: 100%;
+        text-align: center;
+        font-size: 12px;
+        color: #7a9cb3;
+        opacity: 0.5;
+        pointer-events: auto;
+        z-index: 50;
+        font-family: sans-serif;
+        text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+      }
+
+      .footer a {
+        color: #7a9cb3;
+        text-decoration: none;
+        transition: opacity 0.2s;
+      }
+
+      .footer a:hover {
+        opacity: 1;
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 闪光灯 -->
+    <div id="flash-overlay"></div>
+
+    <!-- 舞台 -->
+    <div class="stage">
+      <img src="/image.webp" id="mizuki" alt="Mizuki" />
+    </div>
+
+    <!-- 结果弹窗 -->
+    <div id="photo-modal">
+      <div class="polaroid">
+        <img src="/image.webp" id="result-img" />
+        <div class="polaroid-text">Why do hats take photos( ω )</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      原画
+      <a href="https://www.pixiv.net/artworks/111244444" target="_blank"
+        >Pixiv 作者 Sxnl</a
+      >
+      <span style="margin: 0 5px">|</span>
+      本站无授权非盈利使用
+      <span style="margin: 0 5px">|</span>
+      若有版权问题<a href="mailto:admin@mizuki.press">点我联系</a>
+    </footer>
+
+    <!-- 自定义右键菜单 -->
+    <div id="context-menu">
+      <div class="menu-item" id="pixiv-link">跳转 Pixiv 查看原图</div>
+    </div>
+
+    <script>
+      const mizuki = document.getElementById("mizuki");
+      const flash = document.getElementById("flash-overlay");
+      const modal = document.getElementById("photo-modal");
+      const resultImg = document.getElementById("result-img");
+
+      // 初始化快门音效
+      const shutterSound = new Audio("/camera.mp3");
+
+      let centerX = window.innerWidth / 2;
+      let isTakingPhoto = false; // 防止连拍
+
+      // 窗口大小改变时重新计算中心点
+      window.addEventListener("resize", () => {
+        centerX = window.innerWidth / 2;
+      });
+
+      // 1. 鼠标移动：控制转身
+      document.addEventListener("mousemove", (e) => {
+        // 如果弹窗显示中，不处理转身逻辑
+        if (modal.classList.contains("show")) return;
+
+        const x = e.clientX;
+
+        // 简单的阈值判断
+        if (x < centerX) {
+          // 鼠标在左边
+          mizuki.style.transform = "scaleX(-1)";
+        } else {
+          // 鼠标在右边
+          mizuki.style.transform = "scaleX(1)";
+        }
+      });
+
+      // 2. 点击拍照
+      document.addEventListener("mousedown", (e) => {
+        // 只允许左键 (button 0)
+        if (e.button !== 0) return;
+
+        // 如果点击的是弹窗，则关闭弹窗
+        if (modal.classList.contains("show")) {
+          closeModal();
+          return;
+        }
+
+        // 如果正在拍照中，忽略点击
+        if (isTakingPhoto) return;
+
+        takePhoto();
+      });
+
+      function takePhoto() {
+        isTakingPhoto = true; // 锁定
+
+        // 播放快门音效
+        shutterSound.currentTime = 0;
+        shutterSound.play().catch(() => {}); // 忽略文件不存在的报错
+
+        // 播放闪光动画
+        flash.classList.remove("flashing");
+        void flash.offsetWidth; // 触发重绘
+        flash.classList.add("flashing");
+
+        // 记录当前的方向（为了让照片里的样子和刚才看到的一样）
+        // 获取当前 mizuki 的 transform 值
+        const currentTransform = mizuki.style.transform;
+
+        // 设置结果图的方向
+        resultImg.style.transform = currentTransform;
+
+        // 延迟一点点弹出照片，等待闪光最亮的时候
+        setTimeout(() => {
+          modal.classList.add("show");
+        }, 150);
+      }
+
+      function closeModal() {
+        modal.classList.remove("show");
+        // 稍微延迟一点解锁，避免关闭瞬间误触
+        setTimeout(() => {
+          isTakingPhoto = false;
+        }, 300);
+      }
+      // 右键菜单逻辑
+      const contextMenu = document.getElementById("context-menu");
+      const pixivLink = document.getElementById("pixiv-link");
+
+      document.addEventListener("contextmenu", (e) => {
+        e.preventDefault(); // 禁用默认右键
+        contextMenu.style.display = "block";
+        contextMenu.style.left = e.clientX + "px";
+        contextMenu.style.top = e.clientY + "px";
+      });
+
+      // 点击任意地方关闭菜单
+      document.addEventListener("click", () => {
+        contextMenu.style.display = "none";
+      });
+
+      // 点击菜单项
+      pixivLink.addEventListener("click", () => {
+        window.open("https://www.pixiv.net/artworks/111244444", "_blank");
+      });
+    </script>
+  </body>
+</html>
