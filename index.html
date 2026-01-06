@@ -15,14 +15,45 @@
         overflow: hidden;
         display: flex;
         justify-content: center;
-        align-items: flex-end; /* 让人物站在底部 */
+        align-items: center;
         cursor: crosshair;
+        position: relative;
+      }
+
+      /* 独立的背景层，实现半透明和滚动效果 */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("background.webp");
+        background-repeat: repeat;
+        background-position: 0 0;
+        background-size: 300px 300px; /* 放大尺寸，缓解密集感 */
+        opacity: 0.4; /* 降低透明度，让视觉更柔和 */
+        pointer-events: none; /* 让点击穿透 */
+        animation: bg-scroll 20s linear infinite; /* 20秒一圈，平滑滚动 */
+        z-index: 0;
+      }
+
+      /* 背景滚动动画：左上 -> 右下 */
+      @keyframes bg-scroll {
+        from {
+          background-position: 0 0;
+        }
+        to {
+          /* 必须匹配 background-size 的大小以实现无缝循环 */
+          background-position: 300px 300px;
+        }
       }
 
       /* 容器，用于定位 */
       .stage {
         position: relative;
-        height: 100vh;
+        z-index: 1; /* 确保内容在背景之上 */
+        height: 90vh;
         display: flex;
         justify-content: center;
         align-items: flex-end;
@@ -151,10 +182,10 @@
       /* Footer */
       .footer {
         position: fixed;
-        bottom: 5px;
+        bottom: 15px;
         width: 100%;
         text-align: center;
-        font-size: 12px;
+        font-size: 14px;
         color: #7a9cb3;
         opacity: 0.5;
         pointer-events: auto;
@@ -194,9 +225,12 @@
 
     <!-- Footer -->
     <footer class="footer">
-      原画
+      立绘原画
       <a href="https://www.pixiv.net/artworks/111244444" target="_blank"
         >Pixiv 作者 Sxnl</a
+      >, 底纹原画
+      <a href="https://www.pixiv.net/artworks/92154092" target="_blank"
+        >Pixiv 作者 黑汁蘑菇</a
       >
       <span style="margin: 0 5px">|</span>
       本站无授权非盈利使用
